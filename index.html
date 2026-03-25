@@ -3,74 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>AgroMonitor REAL - João Divino Barbosa</title>
+    <title>AgroSystem Pro - João Divino Barbosa</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { background: #000; overflow: hidden; height: 100vh; }
-        #header { position: fixed; top: 0; left: 0; right: 0; z-index: 2000; background: #0b3b0b; padding: 10px; height: 50px; display: flex; align-items: center; justify-content: space-between; color: #7aff7a; border-bottom: 2px solid #7aff7a; }
-        #map { position: absolute; top: 50px; bottom: 0; left: 0; right: 0; z-index: 1; }
-        .control-panel { position: fixed; bottom: 25px; right: 10px; left: 10px; z-index: 1500; background: rgba(0,0,0,0.9); border-radius: 12px; padding: 15px; border: 2px solid #7aff7a; color: #fff; }
-        .btn-gps { position: fixed; right: 15px; top: 65px; z-index: 1500; width: 50px; height: 50px; border-radius: 50%; background: #2e7d32; color: white; border: 2px solid #7aff7a; box-shadow: 0 0 15px rgba(0,255,0,0.3); }
-        #footer { position: fixed; bottom: 2px; width: 100%; text-align: center; color: #777; font-size: 0.6rem; z-index: 2000; }
-        .barra { height: 10px; background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00); border-radius: 5px; margin-top: 5px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; font-family: sans-serif; }
+        #header { position: fixed; top: 0; width: 100%; height: 50px; background: #0b3b0b; color: #7aff7a; display: flex; align-items: center; justify-content: center; z-index: 1000; border-bottom: 2px solid #7aff7a; font-weight: bold; }
+        #map { position: absolute; top: 50px; bottom: 0; width: 100%; z-index: 1; }
+        #footer { position: fixed; bottom: 0; width: 100%; background: rgba(0,0,0,0.8); color: #fff; text-align: center; font-size: 10px; padding: 5px; z-index: 1000; }
+        .gps-btn { position: fixed; right: 20px; top: 70px; z-index: 1000; width: 50px; height: 50px; border-radius: 50%; background: #2e7d32; border: 2px solid #fff; color: white; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
 
-<div id="header">
-    <span style="font-weight: bold;"><i class="fas fa-satellite"></i> AGROMONITOR: MUNDI V1</span>
-    <div id="status" style="font-size: 0.7rem; color: #fff;">衛星 Imagem em Tempo Real</div>
-</div>
-
+<div id="header">AGRO MONITOR - VISÃO DIRETA</div>
 <div id="map"></div>
-
-<button class="btn-gps" onclick="map.locate({setView: true, maxZoom: 16})"><i class="fas fa-crosshairs"></i></button>
-
-<div class="control-panel">
-    <p style="font-size: 0.8rem; text-align: center; margin-bottom: 10px;">
-        <i class="fas fa-satellite-dish"></i> <b>Processando NDVI...</b> Se não carregar, tente mover o mapa um pouco.
-    </p>
-    <div style="display: flex; gap: 8px;">
-        <input type="date" id="dataFiltro" style="flex: 1; padding: 12px; border-radius: 8px; background: #111; color: #fff; border: 1px solid #7aff7a;">
-        <button onclick="atualizarLayer()" style="padding: 12px; background: #2e7d32; color: #fff; border-radius: 8px; border: none; font-weight: bold;">BUSCAR</button>
-    </div>
-    <div class="barra"></div>
-</div>
-
+<button class="gps-btn" onclick="map.locate({setView: true, maxZoom: 17})">🎯</button>
 <div id="footer">Desenvolvido por João Divino Barbosa</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     const map = L.map('map', { zoomControl: false }).setView([-17.79, -50.92], 13);
 
-    // MAPA BASE GOOGLE (FUNDO)
-    L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
-        maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'], attribution: 'Google'
+    // PROVEDOR ESRI - ALTA DISPONIBILIDADE (Não cai e não pede chave)
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: 'Esri'
     }).addTo(map);
-
-    // CAMADA NDVI - PROVEDOR ALTERNATIVO (Mundi Web Services / Global Sentinel)
-    // Esse link tenta buscar o NDVI global direto sem depender da sua chave pessoal
-    let ndviLayer = L.tileLayer('https://tiles.maps.eox.at/wms?service=WMS&version=1.1.1&request=GetMap&layers=s2cloudless-2023_3857&width={width}&height={height}&srs=EPSG:3857&bbox={bbox}', {
-        attribution: 'Sentinel-2 Cloudless',
-        opacity: 0.8
-    }).addTo(map);
-
-    function atualizarLayer() {
-        // Como este provedor é uma composição anual/mensal mais estável, 
-        // ele vai garantir que você veja a vegetação mesmo se o Sentinel Hub falhar.
-        document.getElementById('status').innerText = "Atualizado para mosaico recente";
-        ndviLayer.redraw();
-    }
 
     map.on('locationfound', (e) => {
-        L.marker(e.latlng).addTo(map).bindPopup("<b>Fazenda Rio da Vida</b>").openPopup();
+        L.marker(e.latlng).addTo(map).bindPopup("Você está aqui").openPopup();
     });
 
-    map.locate({setView: true, maxZoom: 15});
-    document.getElementById('dataFiltro').valueAsDate = new Date();
-
+    map.locate({setView: true, maxZoom: 16});
 </script>
 </body>
 </html>
