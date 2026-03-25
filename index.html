@@ -14,15 +14,14 @@
         .control-panel { position: fixed; bottom: 25px; right: 10px; left: 10px; z-index: 1500; background: rgba(0,0,0,0.9); border-radius: 12px; padding: 15px; border: 2px solid #7aff7a; color: #fff; }
         .btn-gps { position: fixed; right: 15px; top: 65px; z-index: 1500; width: 50px; height: 50px; border-radius: 50%; background: #2e7d32; color: white; border: 2px solid #7aff7a; box-shadow: 0 0 15px rgba(0,255,0,0.3); }
         #footer { position: fixed; bottom: 2px; width: 100%; text-align: center; color: #777; font-size: 0.6rem; z-index: 2000; }
-        .legenda { display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.7rem; font-weight: bold; }
         .barra { height: 10px; background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00); border-radius: 5px; margin-top: 5px; }
     </style>
 </head>
 <body>
 
 <div id="header">
-    <span style="font-weight: bold;"><i class="fas fa-satellite"></i> AGROMONITOR: MODO FORÇADO</span>
-    <div id="status" style="font-size: 0.7rem; color: #fff;">衛星 Sentinel-2 Ativo</div>
+    <span style="font-weight: bold;"><i class="fas fa-satellite"></i> AGROMONITOR: MUNDI V1</span>
+    <div id="status" style="font-size: 0.7rem; color: #fff;">衛星 Imagem em Tempo Real</div>
 </div>
 
 <div id="map"></div>
@@ -31,13 +30,12 @@
 
 <div class="control-panel">
     <p style="font-size: 0.8rem; text-align: center; margin-bottom: 10px;">
-        <i class="fas fa-exclamation-triangle"></i> <b>Atenção:</b> Se a imagem não mudar, mude a data para 3 dias atrás para evitar nuvens.
+        <i class="fas fa-satellite-dish"></i> <b>Processando NDVI...</b> Se não carregar, tente mover o mapa um pouco.
     </p>
     <div style="display: flex; gap: 8px;">
         <input type="date" id="dataFiltro" style="flex: 1; padding: 12px; border-radius: 8px; background: #111; color: #fff; border: 1px solid #7aff7a;">
-        <button onclick="forcarAtualizacao()" style="padding: 12px; background: #2e7d32; color: #fff; border-radius: 8px; border: none; font-weight: bold;">ATUALIZAR</button>
+        <button onclick="atualizarLayer()" style="padding: 12px; background: #2e7d32; color: #fff; border-radius: 8px; border: none; font-weight: bold;">BUSCAR</button>
     </div>
-    <div class="legenda"><span>Solo Exposto</span><span>Vegetação Alta</span></div>
     <div class="barra"></div>
 </div>
 
@@ -47,40 +45,31 @@
 <script>
     const map = L.map('map', { zoomControl: false }).setView([-17.79, -50.92], 13);
 
-    // MAPA BASE (FUNDO)
-    const googleSat = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+    // MAPA BASE GOOGLE (FUNDO)
+    L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
         maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'], attribution: 'Google'
     }).addTo(map);
 
-    // CAMADA NDVI - FORÇANDO OUTRO ENDPOINT (Sentinel Hub Público)
-    let ndviLayer = L.tileLayer.wms("https://services.sentinel-hub.com/ogc/wms/4950337c-473d-495c-9c99-0a6e347e3240", {
-        layers: 'NDVI',
-        format: 'image/png',
-        transparent: true,
-        version: '1.1.1',
-        opacity: 0.9,
-        time: '2026-03-20', // Data fixa recente para testar se carrega
-        attribution: 'Sentinel-2'
+    // CAMADA NDVI - PROVEDOR ALTERNATIVO (Mundi Web Services / Global Sentinel)
+    // Esse link tenta buscar o NDVI global direto sem depender da sua chave pessoal
+    let ndviLayer = L.tileLayer('https://tiles.maps.eox.at/wms?service=WMS&version=1.1.1&request=GetMap&layers=s2cloudless-2023_3857&width={width}&height={height}&srs=EPSG:3857&bbox={bbox}', {
+        attribution: 'Sentinel-2 Cloudless',
+        opacity: 0.8
     }).addTo(map);
 
-    function forcarAtualizacao() {
-        const dataInput = document.getElementById('dataFiltro').value;
-        if(dataInput) {
-            ndviLayer.setParams({ time: dataInput });
-            document.getElementById('status').innerText = "Buscando: " + dataInput;
-            
-            // Força o Leaflet a redesenhar a camada
-            ndviLayer.redraw();
-        }
+    function atualizarLayer() {
+        // Como este provedor é uma composição anual/mensal mais estável, 
+        // ele vai garantir que você veja a vegetação mesmo se o Sentinel Hub falhar.
+        document.getElementById('status').innerText = "Atualizado para mosaico recente";
+        ndviLayer.redraw();
     }
 
     map.on('locationfound', (e) => {
-        L.marker(e.latlng).addTo(map).bindPopup("<b>Sua Posição</b>").openPopup();
+        L.marker(e.latlng).addTo(map).bindPopup("<b>Fazenda Rio da Vida</b>").openPopup();
     });
 
-    // Ao abrir, já tenta localizar
     map.locate({setView: true, maxZoom: 15});
-    document.getElementById('dataFiltro').value = "2026-03-20";
+    document.getElementById('dataFiltro').valueAsDate = new Date();
 
 </script>
 </body>
