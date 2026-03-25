@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Monitoramento Agrícola</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
+        body { background: #0f1a0f; overflow: hidden; height: 100vh; }
+        #header { position: fixed; top: 0; left: 0; right: 0; z-index: 2000; background: #0f3d0f; padding: 10px; height: 50px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        h1 { color: #7cff7c; font-size: 1rem; }
+        #map { position: absolute; top: 50px; bottom: 0; left: 0; right: 0; z-index: 1; }
+        .side-controls { position: fixed; left: 10px; top: 70px; z-index: 1500; display: flex; flex-direction: column; gap: 10px; }
+        .side-btn { width: 50px; height: 50px; background: #1a5c1a; border: 2px solid #4ade80; color: white; border-radius: 10px; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .leaflet-control-layers { margin-top: 20px !important; margin-right: 10px !important; background: rgba(15, 61, 15, 0.95) !important; color: white !important; border: 2px solid #4ade80 !important; font-size: 14px !important; }
+        .leaflet-control-layers label { margin-bottom: 10px; display: block; padding: 5px; }
+        #info-box { position: fixed; bottom: 15px; left: 10px; right: 10px; z-index: 1500; background: rgba(0,0,0,0.85); color: #4ade80; padding: 10px; border-radius: 8px; font-size: 0.75rem; text-align: center; border: 1px solid #4ade80; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="header"><h1>🌱 Satélite Sentinela-2 (Copérnico)</h1></div>
+    <div id="map"></div>
+
+    <div class="side-controls">
+        <button class="side-btn" onclick="getMyLocation()">📍</button>
+        <button class="side-btn" onclick="map.zoomIn()">+</button>
+        <button class="side-btn" onclick="map.zoomOut()">-</button>
+    </div>
+
+    <div id="info-box">Selecione uma opção à direita. Se a imagem não aparecer de imediato, aguarde o carregamento dos dados do satélite.</div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Calcular intervalo de data (últimos 30 dias) para o Sentinel funcionar
+        const hoje = new Date();
+        const trintaDiasAtras = new Date();
+        trintaDiasAtras.setDate(hoje.getDate() - 30);
+        const dataFormatada = trintaDiasAtras.toISOString().split('T')[0] + "/" + hoje.toISOString().split('T')[0];
+
+        const map = L.map('map', { zoomControl: false }).setView([-15.5, -52], 5);
+
+        // Mapa Base (Sempre visível no fundo)
+        const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Esri'
+        }).addTo(map);
+
+        // URL do Servidor Copernicus
+        const wmsUrl = 'https://sh.dataspace.copernicus.eu/ogc/wms/0b080447-0e6e-4775-9e67-00c7336f33d5';
+
+        // Camadas com filtro de data e formato correto
+        const natural = L.tileLayer.wms(wmsUrl, {
+            layers: 'NATURAL-COLOR', format: 'image/png', transparent: true, time: dataFormatada, maxZoom: 18
+        });
+
+        const ndvi = L.tileLayer.wms(wmsUrl, {
+            layers: 'NDVI', format: 'image/png', transparent: true, time: dataFormatada, maxZoom: 18
+        });
+
+        const falseColor = L.tileLayer.wms(wmsUrl, {
+            layers: 'FALSE-COLOR', format: 'image/png', transparent: true, time: dataFormatada, maxZoom: 18
+        });
+
+        // Interface de seleção
+        const baseMaps = { "Satélite HD (Fundo)": esri };
+        const overlays = { 
+            "Ativar: Cor Real": natural, 
+            "Ativar: NDVI (Saúde)": ndvi, 
+            "Ativar: Falsa Cor": falseColor 
+        };
+
+        L.control.layers(baseMaps, overlays, { collapsed: false, position: 'topright' }).addTo(map);
+
+        function getMyLocation() {
+            navigator.geolocation.getCurrentPosition(pos => {
+                map.flyTo([pos.coords.latitude, pos.coords.longitude], 15);
+                L.marker([pos.coords.latitude, pos.coords.longitude]).addTo(map).bindPopup("Sua Área").openPopup();
+            }, () => alert("Ative o GPS."));
+        }
+    </script>
+</body>
+</html>
