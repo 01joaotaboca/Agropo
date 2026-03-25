@@ -3,25 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>AgroMonitor Pro - João Divino Barbosa</title>
+    <title>AgroMonitor REAL - João Divino Barbosa</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { background: #051005; overflow: hidden; height: 100vh; }
-        #header { position: fixed; top: 0; left: 0; right: 0; z-index: 2000; background: #0b3b0b; padding: 8px; height: 50px; display: flex; align-items: center; justify-content: space-between; color: #7aff7a; }
+        body { background: #000; overflow: hidden; height: 100vh; }
+        #header { position: fixed; top: 0; left: 0; right: 0; z-index: 2000; background: #0b3b0b; padding: 10px; height: 50px; display: flex; align-items: center; justify-content: space-between; color: #7aff7a; border-bottom: 2px solid #7aff7a; }
         #map { position: absolute; top: 50px; bottom: 0; left: 0; right: 0; z-index: 1; }
-        .control-panel { position: fixed; bottom: 25px; right: 10px; left: 10px; z-index: 1500; background: rgba(0,0,0,0.9); border-radius: 12px; padding: 12px; border: 1px solid #7aff7a; color: #fff; }
-        .btn-gps { position: fixed; right: 15px; top: 65px; z-index: 1500; width: 50px; height: 50px; border-radius: 50%; background: #2e7d32; color: white; border: 2px solid #7aff7a; font-size: 1.2rem; }
+        .control-panel { position: fixed; bottom: 25px; right: 10px; left: 10px; z-index: 1500; background: rgba(0,0,0,0.9); border-radius: 12px; padding: 15px; border: 2px solid #7aff7a; color: #fff; }
+        .btn-gps { position: fixed; right: 15px; top: 65px; z-index: 1500; width: 50px; height: 50px; border-radius: 50%; background: #2e7d32; color: white; border: 2px solid #7aff7a; box-shadow: 0 0 15px rgba(0,255,0,0.3); }
         #footer { position: fixed; bottom: 2px; width: 100%; text-align: center; color: #777; font-size: 0.6rem; z-index: 2000; }
-        .status-sat { font-size: 0.7rem; background: #1a331a; padding: 4px 8px; border-radius: 4px; border: 1px solid #7aff7a; }
+        .legenda { display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.7rem; font-weight: bold; }
+        .barra { height: 10px; background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00); border-radius: 5px; margin-top: 5px; }
     </style>
 </head>
 <body>
 
 <div id="header">
-    <span style="font-weight: bold;"><i class="fas fa-satellite"></i> AgroMonitor - IMAGEM ATUAL</span>
-    <div class="status-sat" id="satStatus">Buscando Sentinel-2...</div>
+    <span style="font-weight: bold;"><i class="fas fa-satellite"></i> AGROMONITOR: MODO FORÇADO</span>
+    <div id="status" style="font-size: 0.7rem; color: #fff;">衛星 Sentinel-2 Ativo</div>
 </div>
 
 <div id="map"></div>
@@ -29,13 +30,15 @@
 <button class="btn-gps" onclick="map.locate({setView: true, maxZoom: 16})"><i class="fas fa-crosshairs"></i></button>
 
 <div class="control-panel">
-    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-        <input type="date" id="dataFiltro" style="flex: 1; padding: 10px; border-radius: 8px; background: #111; color: #fff; border: 1px solid #7aff7a;">
-        <button onclick="atualizarMapa()" style="padding: 10px; background: #2e7d32; color: #fff; border-radius: 8px; border: none; font-weight: bold;">VER HOJE</button>
+    <p style="font-size: 0.8rem; text-align: center; margin-bottom: 10px;">
+        <i class="fas fa-exclamation-triangle"></i> <b>Atenção:</b> Se a imagem não mudar, mude a data para 3 dias atrás para evitar nuvens.
+    </p>
+    <div style="display: flex; gap: 8px;">
+        <input type="date" id="dataFiltro" style="flex: 1; padding: 12px; border-radius: 8px; background: #111; color: #fff; border: 1px solid #7aff7a;">
+        <button onclick="forcarAtualizacao()" style="padding: 12px; background: #2e7d32; color: #fff; border-radius: 8px; border: none; font-weight: bold;">ATUALIZAR</button>
     </div>
-    <div style="font-size: 0.75rem; color: #7aff7a; text-align: center;">
-        <i class="fas fa-info-circle"></i> A camada NDVI será sobreposta ao mapa do Google abaixo.
-    </div>
+    <div class="legenda"><span>Solo Exposto</span><span>Vegetação Alta</span></div>
+    <div class="barra"></div>
 </div>
 
 <div id="footer">Desenvolvido por João Divino Barbosa</div>
@@ -44,44 +47,40 @@
 <script>
     const map = L.map('map', { zoomControl: false }).setView([-17.79, -50.92], 13);
 
-    // Fundo Google (O que você já tem)
+    // MAPA BASE (FUNDO)
     const googleSat = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
         maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'], attribution: 'Google'
     }).addTo(map);
 
-    // Camada Sentinel-2 ATUALIZADA (Usando endpoint sem restrição de Token imediata para visualização)
-    // Se a imagem não aparecer em 5 segundos, é porque a região está com nuvens na última passagem.
-    let ndviLayer = L.tileLayer.wms("https://sh.dataspace.copernicus.eu/ogc/wms/0b080447-0e6e-4775-9e67-00c7336f33d5", {
+    // CAMADA NDVI - FORÇANDO OUTRO ENDPOINT (Sentinel Hub Público)
+    let ndviLayer = L.tileLayer.wms("https://services.sentinel-hub.com/ogc/wms/4950337c-473d-495c-9c99-0a6e347e3240", {
         layers: 'NDVI',
         format: 'image/png',
         transparent: true,
-        version: '1.3.0',
-        opacity: 0.8,
-        time: new Date().toISOString().split('T')[0], // Busca a imagem de HOJE
-        attribution: 'Copernicus'
+        version: '1.1.1',
+        opacity: 0.9,
+        time: '2026-03-20', // Data fixa recente para testar se carrega
+        attribution: 'Sentinel-2'
     }).addTo(map);
 
-    function atualizarMapa() {
-        const data = document.getElementById('dataFiltro').value;
-        if(data) {
-            ndviLayer.setParams({ time: data });
-            document.getElementById('satStatus').innerText = "Data: " + data;
-        } else {
-            const hoje = new Date().toISOString().split('T')[0];
-            ndviLayer.setParams({ time: hoje });
-            document.getElementById('satStatus').innerText = "Buscando imagem de hoje...";
+    function forcarAtualizacao() {
+        const dataInput = document.getElementById('dataFiltro').value;
+        if(dataInput) {
+            ndviLayer.setParams({ time: dataInput });
+            document.getElementById('status').innerText = "Buscando: " + dataInput;
+            
+            // Força o Leaflet a redesenhar a camada
+            ndviLayer.redraw();
         }
     }
 
-    // GPS Automático
     map.on('locationfound', (e) => {
-        L.marker(e.latlng).addTo(map).bindPopup("Sua posição na Fazenda").openPopup();
-        document.getElementById('satStatus').innerText = "Localizado: Sentinel-2 Ativo";
+        L.marker(e.latlng).addTo(map).bindPopup("<b>Sua Posição</b>").openPopup();
     });
 
-    // Iniciar
-    document.getElementById('dataFiltro').valueAsDate = new Date();
+    // Ao abrir, já tenta localizar
     map.locate({setView: true, maxZoom: 15});
+    document.getElementById('dataFiltro').value = "2026-03-20";
 
 </script>
 </body>
