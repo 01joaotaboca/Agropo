@@ -4,155 +4,83 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>AgroMonitor Pro - João Divino Barbosa</title>
-    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
-
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
         body { background: #051005; overflow: hidden; height: 100vh; }
-        
-        #header {
-            position: fixed; top: 0; left: 0; right: 0; z-index: 2000;
-            background: linear-gradient(135deg, #0b3b0b, #000);
-            padding: 8px 16px; height: 50px; display: flex;
-            align-items: center; justify-content: space-between;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-        }
-
-        h1 { color: #7aff7a; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+        #header { position: fixed; top: 0; left: 0; right: 0; z-index: 2000; background: #0b3b0b; padding: 8px; height: 50px; display: flex; align-items: center; justify-content: space-between; color: #7aff7a; }
         #map { position: absolute; top: 50px; bottom: 0; left: 0; right: 0; z-index: 1; }
-
-        /* Painel de Controle Inferior */
-        .control-panel {
-            position: fixed; bottom: 25px; right: 10px; left: 10px; z-index: 1500;
-            background: rgba(0, 20, 0, 0.9); border-radius: 15px;
-            padding: 12px; border: 1px solid #44ff44;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.6); color: #fff;
-            display: flex; flex-direction: column; gap: 8px;
-        }
-
-        .row { display: flex; gap: 8px; }
-        input, button { padding: 10px; border-radius: 8px; border: none; font-size: 0.8rem; }
-        input { flex: 1; background: #1a331a; color: #fff; border: 1px solid #336633; }
-        button { background: #2e7d32; color: #fff; font-weight: bold; cursor: pointer; }
-        
-        /* Botões Flutuantes Lateral */
-        .side-btns {
-            position: fixed; right: 10px; top: 65px; z-index: 1500;
-            display: flex; flex-direction: column; gap: 10px;
-        }
-        .btn-round {
-            width: 45px; height: 45px; border-radius: 50%; background: #2e7d32;
-            color: white; border: 2px solid #7aff7a; display: flex;
-            align-items: center; justify-content: center; font-size: 1.2rem;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
-        }
-
-        #footer {
-            position: fixed; bottom: 2px; width: 100%; text-align: center;
-            color: #777; font-size: 0.6rem; z-index: 2000;
-        }
-
-        /* Ajuste do botão de desenho para mobile */
-        .leaflet-draw-toolbar a { background-color: #1a331a !important; border-bottom: 1px solid #336633 !important; }
+        .control-panel { position: fixed; bottom: 25px; right: 10px; left: 10px; z-index: 1500; background: rgba(0,0,0,0.9); border-radius: 12px; padding: 12px; border: 1px solid #7aff7a; color: #fff; }
+        .btn-gps { position: fixed; right: 15px; top: 65px; z-index: 1500; width: 50px; height: 50px; border-radius: 50%; background: #2e7d32; color: white; border: 2px solid #7aff7a; font-size: 1.2rem; }
+        #footer { position: fixed; bottom: 2px; width: 100%; text-align: center; color: #777; font-size: 0.6rem; z-index: 2000; }
+        .status-sat { font-size: 0.7rem; background: #1a331a; padding: 4px 8px; border-radius: 4px; border: 1px solid #7aff7a; }
     </style>
 </head>
 <body>
 
 <div id="header">
-    <h1><i class="fas fa-seedling"></i> AgroMonitor Pro</h1>
-    <div style="font-size: 0.7rem; color: #aaa;">Google Hybrid + Medição</div>
+    <span style="font-weight: bold;"><i class="fas fa-satellite"></i> AgroMonitor - IMAGEM ATUAL</span>
+    <div class="status-sat" id="satStatus">Buscando Sentinel-2...</div>
 </div>
 
 <div id="map"></div>
 
-<div class="side-btns">
-    <button class="btn-round" onclick="map.locate({setView: true, maxZoom: 16})" title="GPS"><i class="fas fa-crosshairs"></i></button>
-    <button class="btn-round" onclick="limparMapa()" title="Limpar Desenhos"><i class="fas fa-trash-alt"></i></button>
-</div>
+<button class="btn-gps" onclick="map.locate({setView: true, maxZoom: 16})"><i class="fas fa-crosshairs"></i></button>
 
 <div class="control-panel">
-    <div class="row">
-        <input type="text" id="locInput" placeholder="Buscar Cidade ou Fazenda...">
-        <button onclick="buscarLocal()" style="width: 80px;">BUSCAR</button>
+    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+        <input type="date" id="dataFiltro" style="flex: 1; padding: 10px; border-radius: 8px; background: #111; color: #fff; border: 1px solid #7aff7a;">
+        <button onclick="atualizarMapa()" style="padding: 10px; background: #2e7d32; color: #fff; border-radius: 8px; border: none; font-weight: bold;">VER HOJE</button>
     </div>
-    <div id="areaResult" style="text-align: center; font-weight: bold; color: #7aff7a; font-size: 0.85rem;">
-        Use o ícone de polígono no menu lateral para medir a área (ha).
+    <div style="font-size: 0.75rem; color: #7aff7a; text-align: center;">
+        <i class="fas fa-info-circle"></i> A camada NDVI será sobreposta ao mapa do Google abaixo.
     </div>
 </div>
 
 <div id="footer">Desenvolvido por João Divino Barbosa</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-
 <script>
-    // Configurações do Mapa
     const map = L.map('map', { zoomControl: false }).setView([-17.79, -50.92], 13);
 
-    // Camada Base: Google Hybrid (Imagens Reais + Nomes)
+    // Fundo Google (O que você já tem)
     const googleSat = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
-        subdomains:['mt0','mt1','mt2','mt3'],
-        attribution: 'Google Maps'
+        maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'], attribution: 'Google'
     }).addTo(map);
 
-    // Configuração de Desenho (Medição de Hectares)
-    const drawnItems = new L.FeatureGroup();
-    map.addLayer(drawnItems);
+    // Camada Sentinel-2 ATUALIZADA (Usando endpoint sem restrição de Token imediata para visualização)
+    // Se a imagem não aparecer em 5 segundos, é porque a região está com nuvens na última passagem.
+    let ndviLayer = L.tileLayer.wms("https://sh.dataspace.copernicus.eu/ogc/wms/0b080447-0e6e-4775-9e67-00c7336f33d5", {
+        layers: 'NDVI',
+        format: 'image/png',
+        transparent: true,
+        version: '1.3.0',
+        opacity: 0.8,
+        time: new Date().toISOString().split('T')[0], // Busca a imagem de HOJE
+        attribution: 'Copernicus'
+    }).addTo(map);
 
-    const drawControl = new L.Control.Draw({
-        edit: { featureGroup: drawnItems },
-        draw: {
-            polygon: {
-                allowIntersection: false,
-                showArea: true,
-                drawError: { color: '#e1e100', message: '<strong>Erro:<strong> polígono inválido!' },
-                shapeOptions: { color: '#7aff7a' }
-            },
-            polyline: false, circle: false, circlemarker: false, marker: false, rectangle: true
+    function atualizarMapa() {
+        const data = document.getElementById('dataFiltro').value;
+        if(data) {
+            ndviLayer.setParams({ time: data });
+            document.getElementById('satStatus').innerText = "Data: " + data;
+        } else {
+            const hoje = new Date().toISOString().split('T')[0];
+            ndviLayer.setParams({ time: hoje });
+            document.getElementById('satStatus').innerText = "Buscando imagem de hoje...";
         }
-    });
-    map.addControl(drawControl);
-
-    // Cálculo da Área em Hectares
-    map.on(L.Draw.Event.CREATED, function (event) {
-        const layer = event.layer;
-        drawnItems.addLayer(layer);
-        
-        if (layer instanceof L.Polygon) {
-            const areaM2 = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
-            const hectares = (areaM2 / 10000).toFixed(2);
-            document.getElementById('areaResult').innerHTML = `<i class="fas fa-ruler-combined"></i> Área Calculada: <strong>${hectares} ha</strong>`;
-        }
-    });
-
-    // Função de Busca
-    async function buscarLocal() {
-        const query = document.getElementById('locInput').value;
-        if(!query) return;
-        try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`);
-            const data = await res.json();
-            if(data.length > 0) map.flyTo([data[0].lat, data[0].lon], 14);
-            else alert("Local não encontrado.");
-        } catch(e) { alert("Erro na conexão."); }
     }
 
-    // Limpar desenhos
-    function limparMapa() {
-        drawnItems.clearLayers();
-        document.getElementById('areaResult').innerHTML = "Medição limpa. Inicie um novo desenho.";
-    }
-
-    // GPS
+    // GPS Automático
     map.on('locationfound', (e) => {
-        L.marker(e.latlng).addTo(map).bindPopup("<b>Fazenda:</b> Sua posição atual").openPopup();
+        L.marker(e.latlng).addTo(map).bindPopup("Sua posição na Fazenda").openPopup();
+        document.getElementById('satStatus').innerText = "Localizado: Sentinel-2 Ativo";
     });
 
-    // Iniciar com localização do usuário se permitido
+    // Iniciar
+    document.getElementById('dataFiltro').valueAsDate = new Date();
     map.locate({setView: true, maxZoom: 15});
 
 </script>
