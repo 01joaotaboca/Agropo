@@ -3,648 +3,197 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>AgroMonitor NDVI - Sentinel-2 (Copernicus)</title>
+    <title>AgroMonitor NDVI - João Divino Barbosa</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-        }
-
-        body {
-            background: #0a1f0a;
-            overflow: hidden;
-            height: 100vh;
-        }
-
-        /* Header */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: #0a1f0a; overflow: hidden; height: 100vh; }
+        
         #header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 2000;
+            position: fixed; top: 0; left: 0; right: 0; z-index: 2000;
             background: linear-gradient(135deg, #0b3b0b, #0a2f0a);
-            padding: 8px 16px;
-            height: 56px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            padding: 8px 16px; height: 56px; display: flex;
+            align-items: center; justify-content: space-between;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(2px);
         }
 
-        h1 {
-            color: #c0ffb0;
-            font-size: 1.1rem;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+        h1 { color: #c0ffb0; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+        
+        #map { position: absolute; top: 56px; bottom: 0; left: 0; right: 0; z-index: 1; }
 
-        h1 i {
-            font-size: 1.3rem;
-            color: #7aff7a;
-        }
-
-        .badge {
-            background: #1e6b1e;
-            padding: 4px 8px;
-            border-radius: 30px;
-            font-size: 0.7rem;
-            color: #e0ffe0;
-        }
-
-        /* Mapa */
-        #map {
-            position: absolute;
-            top: 56px;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            z-index: 1;
-        }
-
-        /* Painel flutuante de ferramentas (esquerda) */
         .side-controls {
-            position: fixed;
-            left: 12px;
-            top: 80px;
-            z-index: 1500;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+            position: fixed; left: 12px; top: 70px; z-index: 1500;
+            display: flex; flex-direction: column; gap: 10px;
         }
 
         .side-btn {
-            width: 48px;
-            height: 48px;
-            background: #0f3d0fe6;
-            backdrop-filter: blur(4px);
-            border: 1.5px solid #6bff6b;
-            color: white;
-            border-radius: 14px;
-            font-size: 1.5rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            width: 44px; height: 44px; background: #0f3d0fe6;
+            border: 1.5px solid #6bff6b; color: white; border-radius: 12px;
+            font-size: 1.2rem; cursor: pointer; display: flex;
+            align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
         }
 
-        .side-btn:hover {
-            background: #2b7a2b;
-            transform: scale(1.03);
-            border-color: #aaffaa;
-        }
-
-        /* Painel de Controles Avançados (data e busca) */
         .control-panel {
-            position: fixed;
-            top: 70px;
-            right: 12px;
-            z-index: 1500;
-            background: rgba(10, 30, 10, 0.92);
-            backdrop-filter: blur(8px);
-            border-radius: 20px;
-            padding: 12px 16px;
-            width: 260px;
-            border: 1px solid #5eff5e;
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
-            color: #f0fff0;
-            font-size: 0.8rem;
-            transition: 0.2s;
+            position: fixed; top: 70px; right: 12px; z-index: 1500;
+            background: rgba(10, 30, 10, 0.95); border-radius: 15px;
+            padding: 12px; width: 250px; border: 1px solid #5eff5e;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5); color: #f0fff0;
         }
 
-        .control-panel h4 {
-            font-size: 0.85rem;
-            margin: 0 0 8px 0;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            border-bottom: 1px solid #4caf50;
-            padding-bottom: 5px;
-        }
-
-        .date-group {
-            margin-bottom: 12px;
-        }
-
-        .date-group label {
-            font-size: 0.7rem;
-            opacity: 0.9;
-            display: block;
-            margin-bottom: 4px;
-        }
-
-        input[type="date"] {
-            background: #1e3a1e;
-            border: 1px solid #7eff7e;
-            color: white;
-            padding: 6px 8px;
-            border-radius: 12px;
-            width: 100%;
-            font-size: 0.75rem;
-            font-weight: 500;
+        input[type="date"], input[type="text"] {
+            background: #1e3a1e; border: 1px solid #7eff7e; color: white;
+            padding: 8px; border-radius: 8px; width: 100%; margin-top: 5px; font-size: 0.8rem;
         }
 
         .btn-sm {
-            background: #2e7d32;
-            border: none;
-            color: white;
-            padding: 6px 10px;
-            border-radius: 30px;
-            font-size: 0.7rem;
-            font-weight: bold;
-            cursor: pointer;
-            width: 100%;
-            margin-top: 6px;
-            transition: 0.2s;
-        }
-
-        .btn-sm:hover {
-            background: #5cb85c;
-        }
-
-        .search-box {
-            display: flex;
-            gap: 6px;
-            margin: 12px 0 6px;
-        }
-
-        .search-box input {
-            flex: 1;
-            background: #1e3a1e;
-            border: 1px solid #6aff6a;
-            border-radius: 30px;
-            padding: 6px 10px;
-            color: white;
-            font-size: 0.7rem;
-        }
-
-        .search-box button {
-            background: #2e7d32;
-            border: none;
-            border-radius: 30px;
-            width: 32px;
-            color: white;
-            cursor: pointer;
+            background: #2e7d32; border: none; color: white; padding: 8px;
+            border-radius: 8px; width: 100%; margin-top: 8px; cursor: pointer; font-weight: bold;
         }
 
         .legend-ndvi {
-            background: rgba(0, 0, 0, 0.7);
-            border-radius: 12px;
-            padding: 6px 8px;
-            margin-top: 12px;
-            font-size: 0.65rem;
-            text-align: center;
+            background: rgba(0, 0, 0, 0.5); border-radius: 8px;
+            padding: 8px; margin-top: 10px; font-size: 0.7rem;
         }
 
         .gradient-bar {
-            height: 12px;
-            background: linear-gradient(90deg, #d73027, #f7f7a7, #66bd63, #1a9850);
-            border-radius: 20px;
-            margin: 6px 0;
+            height: 10px; background: linear-gradient(90deg, #d73027, #f7f7a7, #1a9850);
+            border-radius: 5px; margin: 5px 0;
         }
 
-        #info-box {
-            position: fixed;
-            bottom: 12px;
-            left: 12px;
-            right: 12px;
-            z-index: 1500;
-            background: #071a07e0;
-            backdrop-filter: blur(5px);
-            color: #c5ffb0;
-            padding: 8px 12px;
-            border-radius: 24px;
-            font-size: 0.7rem;
-            text-align: center;
-            border: 1px solid #5eff5e;
-            font-weight: 500;
-            pointer-events: none;
-            font-family: monospace;
+        #footer {
+            position: fixed; bottom: 0; left: 0; right: 0; z-index: 2000;
+            background: rgba(0,0,0,0.8); color: #888; text-align: center;
+            font-size: 0.65rem; padding: 4px;
         }
 
-        .leaflet-control-layers {
-            background: #0a2f0ae6 !important;
-            border: 1px solid #6aff6a !important;
-            border-radius: 16px !important;
-            color: #eaffea !important;
-            font-weight: 500;
-            margin-right: 10px !important;
-            margin-top: 80px !important;
-        }
-
-        .leaflet-control-layers label {
-            margin-bottom: 6px;
-        }
-
-        /* loading toast */
         .loading-toast {
-            position: fixed;
-            top: 70px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #000000cc;
-            color: #b3ffa7;
-            padding: 6px 16px;
-            border-radius: 40px;
-            z-index: 2001;
-            font-size: 0.75rem;
-            backdrop-filter: blur(8px);
-            border: 1px solid #9bff9b;
-            pointer-events: none;
-            transition: 0.2s;
-        }
-
-        @media (max-width: 560px) {
-            .control-panel { width: 240px; padding: 8px 12px; top: 66px; }
-            .side-btn { width: 42px; height: 42px; font-size: 1.2rem; }
-            h1 { font-size: 0.9rem; }
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #000; color: #7aff7a; padding: 10px 20px;
+            border-radius: 20px; z-index: 3000; border: 1px solid #7aff7a;
         }
     </style>
 </head>
 <body>
 
 <div id="header">
-    <h1><i class="fas fa-seedling"></i> AgroMonitor NDVI | Sentinel-2 (Copernicus)</h1>
-    <div class="badge"><i class="fas fa-satellite"></i>  Índice de Vegetação</div>
+    <h1><i class="fas fa-satellite"></i> AgroMonitor NDVI</h1>
+    <div style="color: #7aff7a; font-size: 0.8rem;"><i class="fas fa-wifi"></i> Online</div>
 </div>
+
 <div id="map"></div>
 
-<!-- Barra de ferramentas esquerda -->
 <div class="side-controls">
-    <button class="side-btn" id="locateBtn" title="Minha localização"><i class="fas fa-location-dot"></i></button>
-    <button class="side-btn" id="zoomInBtn" title="Aumentar zoom"><i class="fas fa-plus"></i></button>
-    <button class="side-btn" id="zoomOutBtn" title="Diminuir zoom"><i class="fas fa-minus"></i></button>
+    <button class="side-btn" id="locateBtn"><i class="fas fa-crosshairs"></i></button>
+    <button class="side-btn" id="zoomInBtn"><i class="fas fa-plus"></i></button>
+    <button class="side-btn" id="zoomOutBtn"><i class="fas fa-minus"></i></button>
 </div>
 
-<!-- Painel direito: data e busca -->
 <div class="control-panel">
-    <h4><i class="fas fa-calendar-alt"></i> Período da imagem</h4>
-    <div class="date-group">
-        <label>📅 Data de referência (centro)</label>
-        <input type="date" id="refDate" value="">
-        <button id="applyDateBtn" class="btn-sm"><i class="fas fa-sync-alt"></i> Aplicar janela ±7 dias</button>
-        <button id="last30Btn" class="btn-sm"><i class="far fa-clock"></i> Últimos 30 dias</button>
-    </div>
+    <label style="font-size: 0.7rem;">📅 DATA DA IMAGEM</label>
+    <input type="date" id="refDate">
+    <button id="applyDateBtn" class="btn-sm">ATUALIZAR SATÉLITE</button>
 
-    <h4><i class="fas fa-map-marker-alt"></i> Buscar local</h4>
-    <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Cidade, fazenda, estado..." autocomplete="off">
-        <button id="searchBtn"><i class="fas fa-search"></i></button>
+    <div style="margin-top: 15px;">
+        <label style="font-size: 0.7rem;">🔍 BUSCAR TALHÃO/CIDADE</label>
+        <input type="text" id="searchInput" placeholder="Ex: Rio Verde, GO">
+        <button id="searchBtn" class="btn-sm" style="background: #1b5e20;">BUSCAR</button>
     </div>
 
     <div class="legend-ndvi">
-        <div><i class="fas fa-chart-line"></i> <strong>NDVI (Saúde vegetal)</strong></div>
+        <strong>NDVI (Saúde da Cultura)</strong>
         <div class="gradient-bar"></div>
         <div style="display: flex; justify-content: space-between;">
-            <span>🌾 Baixo</span><span>🌿 Moderado</span><span>🌳 Alto</span>
+            <span>Solo/Seco</span><span>Vigor Alto</span>
         </div>
-        <div style="font-size: 0.6rem; margin-top: 4px;">Valores altos = vegetação vigorosa</div>
     </div>
 </div>
 
-<div id="info-box">
-    <i class="fas fa-info-circle"></i> Camada ativa: NDVI (Vegetação) | Clique nos botões à direita para trocar bandas
-</div>
+<div id="footer">Desenvolvido por João Divino Barbosa</div>
 
-<!-- Scripts -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // --------------------------------------------------------------
-    // CONFIGURAÇÕES DO SATÉLITE (Copernicus Data Space - Sentinel-2)
-    // Collection ID válido para WMS Sentinel-2 L2A (dados públicos)
+    // Configurações do Provedor
+    // Utilizando o endpoint público do Copernicus Data Space
     const WMS_URL = 'https://sh.dataspace.copernicus.eu/ogc/wms/0b080447-0e6e-4775-9e67-00c7336f33d5';
-    
-    // Funções auxiliares de data
-    function formatDate(date) {
-        return date.toISOString().split('T')[0];
-    }
-    
-    // Gera intervalo com base na data central: início = centro - 7 dias, fim = centro + 7 dias
-    // Limita ao máximo hoje se a data ultrapassar
-    function getRangeFromCenterDate(centerDateStr) {
-        const center = new Date(centerDateStr);
-        if (isNaN(center.getTime())) return getLast30DaysRange();
-        const start = new Date(center);
-        start.setDate(center.getDate() - 7);
-        const end = new Date(center);
-        end.setDate(center.getDate() + 7);
-        const today = new Date();
-        if (end > today) {
-            // ajusta fim para hoje, mas mantém início como está (janela assimétrica)
-            return `${formatDate(start)}/${formatDate(today)}`;
-        }
-        return `${formatDate(start)}/${formatDate(end)}`;
-    }
-    
-    function getLast30DaysRange() {
-        const hoje = new Date();
-        const trintaAtras = new Date();
-        trintaAtras.setDate(hoje.getDate() - 30);
-        return `${formatDate(trintaAtras)}/${formatDate(hoje)}`;
-    }
-    
-    // Inicialização do mapa
-    const map = L.map('map', { zoomControl: false }).setView([-15.5, -52], 5);
-    
-    // Base map (imagem satélite de fundo)
+
+    // Inicializa o Mapa focado em região agrícola (Goiás por padrão)
+    const map = L.map('map', { zoomControl: false }).setView([-17.79, -50.92], 12);
+
+    // Camada Base: Esri Satélite (Alta Resolução e Estável)
     const esriBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Esri, Maxar, Earthstar Geographics',
+        attribution: 'Esri, Maxar',
         maxZoom: 18
     }).addTo(map);
-    
-    // Camadas WMS do Sentinel-2 (com transparência)
-    let currentTimeRange = getLast30DaysRange();  // inicial
-    
-    const naturalColor = L.tileLayer.wms(WMS_URL, {
-        layers: 'NATURAL-COLOR',
-        format: 'image/png',
-        transparent: true,
-        time: currentTimeRange,
-        maxZoom: 18,
-        opacity: 0.9,
-        attribution: 'Copernicus Sentinel-2'
-    });
-    
-    const ndviLayer = L.tileLayer.wms(WMS_URL, {
+
+    // Camada NDVI (Sentinel-2)
+    let ndviLayer = L.tileLayer.wms(WMS_URL, {
         layers: 'NDVI',
         format: 'image/png',
         transparent: true,
-        time: currentTimeRange,
-        maxZoom: 18,
-        opacity: 0.95,
-        attribution: 'Copernicus Sentinel-2 (NDVI)'
-    });
-    
-    const falseColor = L.tileLayer.wms(WMS_URL, {
-        layers: 'FALSE-COLOR',
-        format: 'image/png',
-        transparent: true,
-        time: currentTimeRange,
-        maxZoom: 18,
-        opacity: 0.9,
-        attribution: 'Copernicus Sentinel-2 (False Color)'
-    });
-    
-    // Inicialmente ativamos o NDVI (foco em vegetação)
-    ndviLayer.addTo(map);
-    let activeOverlay = 'ndvi';  // controle interno para info
-    
-    // Controle de camadas (overlays)
-    const overlays = {
-        "🌿 NDVI (Índice de Vegetação)": ndviLayer,
-        "🖼️ Cor Real (RGB)": naturalColor,
-        "🎨 Falsa Cor (Infravermelho)": falseColor
+        version: '1.3.0',
+        time: '2024-01-01/2026-03-25', // Janela de tempo ampla para garantir captura
+        opacity: 0.7,
+        attribution: 'Copernicus Sentinel'
+    }).addTo(map);
+
+    // Funções de Interface
+    function showToast(msg) {
+        const toast = document.createElement('div');
+        toast.className = 'loading-toast';
+        toast.innerText = msg;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Localização GPS
+    document.getElementById('locateBtn').onclick = () => {
+        map.locate({setView: true, maxZoom: 15});
     };
-    const baseMaps = { "🛰️ Satélite HD (Fundo)": esriBase };
-    const layerControl = L.control.layers(baseMaps, overlays, { collapsed: false, position: 'topright' }).addTo(map);
-    
-    // Atualizar info com a camada ativa (eventos de adicionar/remover)
-    function updateInfoActiveLayer() {
-        const infoDiv = document.getElementById('info-box');
-        if (map.hasLayer(ndviLayer)) {
-            infoDiv.innerHTML = '<i class="fas fa-leaf"></i> Camada ATIVA: NDVI (Saúde da vegetação) | Tons verdes/amarelos indicam vigor | Dados Sentinel-2';
-            activeOverlay = 'ndvi';
-        } else if (map.hasLayer(naturalColor)) {
-            infoDiv.innerHTML = '<i class="fas fa-image"></i> Camada ATIVA: Cor Real (RGB) | Imagem natural como vista do satélite';
-            activeOverlay = 'natural';
-        } else if (map.hasLayer(falseColor)) {
-            infoDiv.innerHTML = '<i class="fas fa-chart-simple"></i> Camada ATIVA: Falsa Cor (Infravermelho) | Destaca umidade e solo';
-            activeOverlay = 'false';
+
+    map.on('locationfound', (e) => {
+        L.marker(e.latlng).addTo(map).bindPopup("Você está aqui").openPopup();
+    });
+
+    // Atualizar Data
+    document.getElementById('applyDateBtn').onclick = () => {
+        const date = document.getElementById('refDate').value;
+        if(date) {
+            const timeRange = `${date}/${date}`; 
+            ndviLayer.setParams({ time: timeRange });
+            showToast("Atualizando camadas de satélite...");
         } else {
-            infoDiv.innerHTML = '<i class="fas fa-layer-group"></i> Nenhuma camada Sentinel ativa. Selecione uma no menu à direita.';
+            alert("Selecione uma data primeiro.");
         }
-    }
-    
-    // Monitorar quando camadas são adicionadas/removidas via layer control
-    map.on('overlayadd', updateInfoActiveLayer);
-    map.on('overlayremove', updateInfoActiveLayer);
-    
-    // Função para atualizar o intervalo de tempo em TODAS as camadas WMS
-    function updateAllLayersTime(newTimeRange) {
-        currentTimeRange = newTimeRange;
-        // mostra loading visual
-        showLoadingToast(`🛰️ Carregando imagens para período: ${newTimeRange}`);
-        
-        // Atualiza parâmetros de cada camada usando setParams
-        naturalColor.setParams({ time: newTimeRange });
-        ndviLayer.setParams({ time: newTimeRange });
-        falseColor.setParams({ time: newTimeRange });
-        
-        // Pequeno delay para esconder loading após requisições começarem
-        setTimeout(() => {
-            hideLoadingToast();
-        }, 1800);
-    }
-    
-    // Toast de carregamento
-    let toastEl = null;
-    function showLoadingToast(msg) {
-        if (toastEl) toastEl.remove();
-        toastEl = document.createElement('div');
-        toastEl.className = 'loading-toast';
-        toastEl.innerHTML = `<i class="fas fa-sync-alt fa-spin"></i> ${msg}`;
-        document.body.appendChild(toastEl);
-        setTimeout(() => {
-            if (toastEl) toastEl.style.opacity = '0';
-            setTimeout(() => { if (toastEl) toastEl.remove(); toastEl = null; }, 500);
-        }, 4000);
-    }
-    function hideLoadingToast() {
-        if (toastEl) {
-            toastEl.style.opacity = '0';
-            setTimeout(() => { if (toastEl) toastEl.remove(); toastEl = null; }, 300);
-        }
-    }
-    
-    // Aplica intervalo baseado na data do seletor (janela de ±7 dias)
-    function applyDateFromPicker() {
-        const datePicker = document.getElementById('refDate');
-        let centerDate = datePicker.value;
-        if (!centerDate) {
-            centerDate = formatDate(new Date());
-            datePicker.value = centerDate;
-        }
-        const newRange = getRangeFromCenterDate(centerDate);
-        updateAllLayersTime(newRange);
-        document.getElementById('info-box').innerHTML += `<br><span style="font-size:0.65rem;">📅 Período: ${newRange}</span>`;
-        setTimeout(() => {
-            updateInfoActiveLayer();
-        }, 100);
-    }
-    
-    // Últimos 30 dias (padrão mais recente)
-    function setLast30Days() {
-        const range = getLast30DaysRange();
-        updateAllLayersTime(range);
-        // ajustar date picker para hoje (referência visual)
-        document.getElementById('refDate').value = formatDate(new Date());
-        updateInfoActiveLayer();
-    }
-    
-    // Localização do usuário (GPS)
-    let currentMarker = null;
-    function getMyLocation() {
-        if (!navigator.geolocation) {
-            alert("Geolocalização não suportada pelo navegador.");
-            return;
-        }
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const { latitude, longitude } = position.coords;
-                map.flyTo([latitude, longitude], 14, { duration: 1.2 });
-                if (currentMarker) map.removeLayer(currentMarker);
-                currentMarker = L.marker([latitude, longitude], { 
-                    icon: L.divIcon({ html: '<i class="fas fa-map-pin" style="font-size:24px; color:#ffaa44; text-shadow: 0 0 3px black;"></i>', iconSize: [24, 24], className: 'custom-marker' })
-                }).addTo(map).bindPopup("📍 Sua localização atual").openPopup();
-            },
-            (error) => {
-                let msg = "Erro ao acessar GPS: ";
-                if (error.code === 1) msg += "Permissão negada.";
-                else if (error.code === 2) msg += "Indisponível.";
-                else msg += "Tente novamente.";
-                alert(msg);
-            }
-        );
-    }
-    
-    // Busca por local usando Nominatim (OpenStreetMap)
-    async function searchLocation(query) {
-        if (!query.trim()) return;
-        showLoadingToast(`Buscando "${query}"...`);
-        try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&addressdetails=0&countrycodes=br`);
-            const data = await response.json();
-            if (data && data.length > 0) {
-                const { lat, lon, display_name } = data[0];
-                const latNum = parseFloat(lat);
-                const lngNum = parseFloat(lon);
-                map.flyTo([latNum, lngNum], 13, { duration: 1.2 });
-                if (currentMarker) map.removeLayer(currentMarker);
-                currentMarker = L.marker([latNum, lngNum]).addTo(map)
-                    .bindPopup(`📍 ${display_name.substring(0, 80)}`).openPopup();
-                hideLoadingToast();
-            } else {
-                alert("Local não encontrado. Tente outro nome de cidade ou fazenda.");
-                hideLoadingToast();
-            }
-        } catch (err) {
-            console.error(err);
-            alert("Erro na busca. Verifique conexão.");
-            hideLoadingToast();
-        }
-    }
-    
-    // Event listeners de UI
-    document.getElementById('locateBtn').addEventListener('click', getMyLocation);
-    document.getElementById('zoomInBtn').addEventListener('click', () => map.zoomIn());
-    document.getElementById('zoomOutBtn').addEventListener('click', () => map.zoomOut());
-    document.getElementById('applyDateBtn').addEventListener('click', applyDateFromPicker);
-    document.getElementById('last30Btn').addEventListener('click', setLast30Days);
-    document.getElementById('searchBtn').addEventListener('click', () => {
-        const input = document.getElementById('searchInput').value;
-        searchLocation(input);
-    });
-    document.getElementById('searchInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') searchLocation(e.target.value);
-    });
-    
-    // Inicializa date picker com data atual e configura período padrão (últimos 30 dias)
-    const todayStr = formatDate(new Date());
-    document.getElementById('refDate').value = todayStr;
-    // Garante que as camadas iniciem com últimos 30 dias (já definido)
-    updateAllLayersTime(getLast30DaysRange());
-    
-    // Ajuste de legenda adicional e tooltip
-    setTimeout(() => {
-        updateInfoActiveLayer();
-        // Mostra uma pequena nota no console para debug
-        console.log("Monitor Agrícola carregado - Camada NDVI ativa com dados recentes Sentinel-2");
-    }, 500);
-    
-    // Tratamento de erro de tiles WMS (tentativa de feedback)
-    function handleWmsError(layerName) {
-        console.warn(`Erro ao carregar camada ${layerName}. Pode ser falta de imagem no período ou nuvens.`);
-        const infoDiv = document.getElementById('info-box');
-        infoDiv.style.borderColor = "#ffaa66";
-        setTimeout(() => {
-            infoDiv.style.borderColor = "#5eff5e";
-        }, 2000);
-    }
-    
-    // Adiciona eventos de erro básico para cada camada (tentativa de capturar falhas)
-    ndviLayer.on('tileerror', () => handleWmsError('NDVI'));
-    naturalColor.on('tileerror', () => handleWmsError('Cor Real'));
-    falseColor.on('tileerror', () => handleWmsError('Falsa Cor'));
-    
-    // Explicação extra: caso a imagem não apareça, o período pode estar sem cobertura de nuvens.
-    // O usuário pode ajustar a data manualmente.
-    
-    // Criar também um botão flutuante de ajuda? Adicionar mensagem na caixa de informação
-    const originalInfo = document.getElementById('info-box').innerHTML;
-    setInterval(() => {
-        // apenas para manter a dica se nenhuma camada ativa
-        if (!map.hasLayer(ndviLayer) && !map.hasLayer(naturalColor) && !map.hasLayer(falseColor)) {
-            document.getElementById('info-box').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Nenhuma camada Sentinel visível. Selecione NDVI, Cor Real ou Falsa Cor no canto superior direito.';
-        } else if (map.hasLayer(ndviLayer) && activeOverlay === 'ndvi') {
-            // já atualizado pelo evento, mas manter coerência
-        }
-    }, 3000);
-    
-    // Adicionar botão de reset de visualização (opcional) usando duplo clique no mapa? não necessário
-    // Finalização: ajuste para mostrar o intervalo atual no info
-    function showCurrentRangeInInfo() {
-        const shortRange = currentTimeRange.split('/').map(d => d.slice(5)).join(' a ');
-        const infoDiv = document.getElementById('info-box');
-        if (!infoDiv.innerHTML.includes('Período')) {
-            // apenas complementa sem poluir
-        }
-    }
-    showCurrentRangeInInfo();
-    
-    // Adiciona opção de clicar no mapa para obter coordenada (agrícola)
-    map.on('click', function(e) {
-        const latlng = e.latlng;
-        L.popup()
-            .setLatLng(latlng)
-            .setContent(`📍 Coordenada agrícola:<br>Lat: ${latlng.lat.toFixed(5)}<br>Lng: ${latlng.lng.toFixed(5)}<br><span style="font-size:0.7rem;">Use no NDVI para análise</span>`)
-            .openOn(map);
-    });
-    
-    // Criar pequena marca d'água de crédito Copernicus
-    const creditControl = L.control({ position: 'bottomright' });
-    creditControl.onAdd = function() {
-        const div = L.DomUtil.create('div', 'info-credit');
-        div.innerHTML = '<div style="background: #0a2a0ac9; padding: 3px 8px; border-radius: 20px; font-size: 10px; color: #bbffbb;"><i class="fas fa-satellite-dish"></i> Sentinel-2 | Copernicus</div>';
-        return div;
     };
-    creditControl.addTo(map);
-    
-    // fornecer um fallback amigável caso as camadas demorem - indicador
-    let loadingHint = setInterval(() => {
-        if (!map.hasLayer(ndviLayer) && !map.hasLayer(naturalColor) && !map.hasLayer(falseColor)) {
-            // exibe dica adicional no info
-            const info = document.getElementById('info-box');
-            if (!info.innerHTML.includes('Selecione uma camada')) {
-                info.innerHTML = '<i class="fas fa-hand-pointer"></i> Selecione uma opção no canto superior direito (NDVI recomendado) para visualizar imagens do satélite.';
+
+    // Busca de Local (Nominatim)
+    async function search() {
+        const query = document.getElementById('searchInput').value;
+        if(!query) return;
+        
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`);
+            const data = await res.json();
+            if(data.length > 0) {
+                map.flyTo([data[0].lat, data[0].lon], 14);
+            } else {
+                alert("Local não encontrado.");
             }
+        } catch (e) {
+            alert("Erro na busca.");
         }
-    }, 5000);
+    }
+
+    document.getElementById('searchBtn').onclick = search;
     
-    // Após carregar completamente, remove intervalo excessivo
-    window.addEventListener('load', () => {
-        setTimeout(() => { clearInterval(loadingHint); }, 10000);
-        // Botão extra mental: última linha de estilo para markers
-    });
+    // Zoom
+    document.getElementById('zoomInBtn').onclick = () => map.zoomIn();
+    document.getElementById('zoomOutBtn').onclick = () => map.zoomOut();
+
+    // Data Padrão (Hoje)
+    document.getElementById('refDate').valueAsDate = new Date();
+
 </script>
 </body>
 </html>
