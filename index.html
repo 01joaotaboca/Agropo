@@ -3,109 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>AgroMonitor NDVI - João Divino Barbosa</title>
+    <title>AgroMonitor Pro - João Divino Barbosa</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { background: #0a1f0a; overflow: hidden; height: 100vh; }
+        body { background: #051005; overflow: hidden; height: 100vh; }
         
         #header {
             position: fixed; top: 0; left: 0; right: 0; z-index: 2000;
-            background: linear-gradient(135deg, #0b3b0b, #0a2f0a);
-            padding: 8px 16px; height: 56px; display: flex;
+            background: linear-gradient(135deg, #0b3b0b, #000);
+            padding: 8px 16px; height: 50px; display: flex;
             align-items: center; justify-content: space-between;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
         }
 
-        h1 { color: #c0ffb0; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
-        
-        #map { position: absolute; top: 56px; bottom: 0; left: 0; right: 0; z-index: 1; }
+        h1 { color: #7aff7a; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+        #map { position: absolute; top: 50px; bottom: 0; left: 0; right: 0; z-index: 1; }
 
-        .side-controls {
-            position: fixed; left: 12px; top: 70px; z-index: 1500;
+        /* Painel de Controle */
+        .control-panel {
+            position: fixed; bottom: 25px; right: 10px; left: 10px; z-index: 1500;
+            background: rgba(0, 20, 0, 0.9); border-radius: 15px;
+            padding: 12px; border: 1px solid #44ff44;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6); color: #fff;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+
+        .row { display: flex; gap: 8px; }
+        input, button { 
+            padding: 10px; border-radius: 8px; border: none; font-size: 0.8rem;
+        }
+        input { flex: 1; background: #1a331a; color: #fff; border: 1px solid #336633; }
+        button { background: #2e7d32; color: #fff; font-weight: bold; cursor: pointer; }
+        
+        /* Botões Flutuantes Lateral */
+        .side-btns {
+            position: fixed; right: 10px; top: 65px; z-index: 1500;
             display: flex; flex-direction: column; gap: 10px;
         }
-
-        .side-btn {
-            width: 44px; height: 44px; background: #0f3d0fe6;
-            border: 1.5px solid #6bff6b; color: white; border-radius: 12px;
-            font-size: 1.2rem; cursor: pointer; display: flex;
-            align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-        }
-
-        .control-panel {
-            position: fixed; top: 70px; right: 12px; z-index: 1500;
-            background: rgba(10, 30, 10, 0.95); border-radius: 15px;
-            padding: 12px; width: 250px; border: 1px solid #5eff5e;
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5); color: #f0fff0;
-        }
-
-        input[type="date"], input[type="text"] {
-            background: #1e3a1e; border: 1px solid #7eff7e; color: white;
-            padding: 8px; border-radius: 8px; width: 100%; margin-top: 5px; font-size: 0.8rem;
-        }
-
-        .btn-sm {
-            background: #2e7d32; border: none; color: white; padding: 8px;
-            border-radius: 8px; width: 100%; margin-top: 8px; cursor: pointer; font-weight: bold;
-        }
-
-        .legend-ndvi {
-            background: rgba(0, 0, 0, 0.5); border-radius: 8px;
-            padding: 8px; margin-top: 10px; font-size: 0.7rem;
-        }
-
-        .gradient-bar {
-            height: 10px; background: linear-gradient(90deg, #d73027, #f7f7a7, #1a9850);
-            border-radius: 5px; margin: 5px 0;
+        .btn-round {
+            width: 45px; height: 45px; border-radius: 50%; background: #2e7d32;
+            color: white; border: 2px solid #7aff7a; display: flex;
+            align-items: center; justify-content: center; font-size: 1.2rem;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
         }
 
         #footer {
-            position: fixed; bottom: 0; left: 0; right: 0; z-index: 2000;
-            background: rgba(0,0,0,0.8); color: #888; text-align: center;
-            font-size: 0.65rem; padding: 4px;
-        }
-
-        .loading-toast {
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-            background: #000; color: #7aff7a; padding: 10px 20px;
-            border-radius: 20px; z-index: 3000; border: 1px solid #7aff7a;
+            position: fixed; bottom: 2px; width: 100%; text-align: center;
+            color: #777; font-size: 0.6rem; z-index: 2000;
         }
     </style>
 </head>
 <body>
 
 <div id="header">
-    <h1><i class="fas fa-satellite"></i> AgroMonitor NDVI</h1>
-    <div style="color: #7aff7a; font-size: 0.8rem;"><i class="fas fa-wifi"></i> Online</div>
+    <h1><i class="fas fa-seedling"></i> AgroMonitor Pro</h1>
+    <div style="font-size: 0.7rem; color: #aaa;">Sentinel-2 + Google Hybrid</div>
 </div>
 
 <div id="map"></div>
 
-<div class="side-controls">
-    <button class="side-btn" id="locateBtn"><i class="fas fa-crosshairs"></i></button>
-    <button class="side-btn" id="zoomInBtn"><i class="fas fa-plus"></i></button>
-    <button class="side-btn" id="zoomOutBtn"><i class="fas fa-minus"></i></button>
+<div class="side-btns">
+    <button class="btn-round" onclick="map.locate({setView: true, maxZoom: 16})"><i class="fas fa-crosshairs"></i></button>
+    <button class="btn-round" onclick="map.zoomIn()"><i class="fas fa-plus"></i></button>
+    <button class="btn-round" onclick="map.zoomOut()"><i class="fas fa-minus"></i></button>
 </div>
 
 <div class="control-panel">
-    <label style="font-size: 0.7rem;">📅 DATA DA IMAGEM</label>
-    <input type="date" id="refDate">
-    <button id="applyDateBtn" class="btn-sm">ATUALIZAR SATÉLITE</button>
-
-    <div style="margin-top: 15px;">
-        <label style="font-size: 0.7rem;">🔍 BUSCAR TALHÃO/CIDADE</label>
-        <input type="text" id="searchInput" placeholder="Ex: Rio Verde, GO">
-        <button id="searchBtn" class="btn-sm" style="background: #1b5e20;">BUSCAR</button>
+    <div class="row">
+        <input type="text" id="locInput" placeholder="Cidade ou Coordenadas...">
+        <button onclick="buscarLocal()" style="width: 80px;">BUSCAR</button>
     </div>
-
-    <div class="legend-ndvi">
-        <strong>NDVI (Saúde da Cultura)</strong>
-        <div class="gradient-bar"></div>
-        <div style="display: flex; justify-content: space-between;">
-            <span>Solo/Seco</span><span>Vigor Alto</span>
-        </div>
+    <div class="row" style="justify-content: space-between; align-items: center; font-size: 0.7rem;">
+        <span>Legenda NDVI:</span>
+        <div style="flex: 1; height: 8px; margin: 0 10px; background: linear-gradient(90deg, red, yellow, green); border-radius: 4px;"></div>
+        <span>Vigor</span>
     </div>
 </div>
 
@@ -113,87 +86,51 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // Configurações do Provedor
-    // Utilizando o endpoint público do Copernicus Data Space
-    const WMS_URL = 'https://sh.dataspace.copernicus.eu/ogc/wms/0b080447-0e6e-4775-9e67-00c7336f33d5';
+    // Configurações de Camadas
+    const map = L.map('map', { zoomControl: false }).setView([-17.79, -50.92], 13);
 
-    // Inicializa o Mapa focado em região agrícola (Goiás por padrão)
-    const map = L.map('map', { zoomControl: false }).setView([-17.79, -50.92], 12);
-
-    // Camada Base: Esri Satélite (Alta Resolução e Estável)
-    const esriBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Esri, Maxar',
-        maxZoom: 18
+    // 1. Google Satellite Hybrid (Camada Base)
+    const googleSat = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains:['mt0','mt1','mt2','mt3'],
+        attribution: 'Google Maps'
     }).addTo(map);
 
-    // Camada NDVI (Sentinel-2)
-    let ndviLayer = L.tileLayer.wms(WMS_URL, {
+    // 2. Camada NDVI (Sentinel-2 via Copernicus WMS)
+    // Nota: O ID abaixo é público para testes. Se expirar, substitua pelo seu ID do CDSE.
+    const sentinelWMS = "https://sh.dataspace.copernicus.eu/ogc/wms/0b080447-0e6e-4775-9e67-00c7336f33d5";
+    
+    const ndviLayer = L.tileLayer.wms(sentinelWMS, {
         layers: 'NDVI',
         format: 'image/png',
         transparent: true,
         version: '1.3.0',
-        time: '2024-01-01/2026-03-25', // Janela de tempo ampla para garantir captura
-        opacity: 0.7,
+        opacity: 0.6, // Deixa o Google Satélite visível por baixo
         attribution: 'Copernicus Sentinel'
     }).addTo(map);
 
-    // Funções de Interface
-    function showToast(msg) {
-        const toast = document.createElement('div');
-        toast.className = 'loading-toast';
-        toast.innerText = msg;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
-    }
+    // Controle de Camadas (Menu superior direito)
+    const baseMaps = { "🛰️ Satélite Google": googleSat };
+    const overlays = { "🌿 Ver Vigor (NDVI)": ndviLayer };
+    L.control.layers(baseMaps, overlays, { position: 'topright' }).addTo(map);
 
-    // Localização GPS
-    document.getElementById('locateBtn').onclick = () => {
-        map.locate({setView: true, maxZoom: 15});
-    };
-
-    map.on('locationfound', (e) => {
-        L.marker(e.latlng).addTo(map).bindPopup("Você está aqui").openPopup();
-    });
-
-    // Atualizar Data
-    document.getElementById('applyDateBtn').onclick = () => {
-        const date = document.getElementById('refDate').value;
-        if(date) {
-            const timeRange = `${date}/${date}`; 
-            ndviLayer.setParams({ time: timeRange });
-            showToast("Atualizando camadas de satélite...");
-        } else {
-            alert("Selecione uma data primeiro.");
-        }
-    };
-
-    // Busca de Local (Nominatim)
-    async function search() {
-        const query = document.getElementById('searchInput').value;
+    // Busca de Localidades
+    async function buscarLocal() {
+        const query = document.getElementById('locInput').value;
         if(!query) return;
-        
         try {
             const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`);
             const data = await res.json();
-            if(data.length > 0) {
-                map.flyTo([data[0].lat, data[0].lon], 14);
-            } else {
-                alert("Local não encontrado.");
-            }
-        } catch (e) {
-            alert("Erro na busca.");
-        }
+            if(data.length > 0) map.flyTo([data[0].lat, data[0].lon], 14);
+            else alert("Local não encontrado.");
+        } catch(e) { alert("Erro na conexão."); }
     }
 
-    document.getElementById('searchBtn').onclick = search;
-    
-    // Zoom
-    document.getElementById('zoomInBtn').onclick = () => map.zoomIn();
-    document.getElementById('zoomOutBtn').onclick = () => map.zoomOut();
-
-    // Data Padrão (Hoje)
-    document.getElementById('refDate').valueAsDate = new Date();
-
+    // Suporte a localização
+    map.on('locationfound', (e) => {
+        L.circle(e.latlng, {radius: e.accuracy, color: '#7aff7a'}).addTo(map);
+        L.marker(e.latlng).addTo(map).bindPopup("Você está aqui").openPopup();
+    });
 </script>
 </body>
 </html>
